@@ -1,0 +1,46 @@
+import mlflow
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import roc_curve
+import matplotlib.pyplot as plt
+import numpy as np
+from azureml.core import Run
+
+# Azure ML run context
+run = Run.get_context()
+
+with mlflow.start_run():
+
+    # Train model
+    model = DecisionTreeClassifier().fit(X_train, y_train)
+
+    # Predictions + Accuracy
+    y_hat = model.predict(X_test)
+    acc = np.average(y_hat == y_test)
+
+    # ROC Curve calculations
+    y_scores = model.predict_proba(X_test)
+    fpr, tpr, thresholds = roc_curve(y_test, y_scores[:, 1])
+
+    # Plot ROC
+    plt.figure(figsize=(6, 4))
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.plot(fpr, tpr)
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve')
+
+    # Save
+    roc_path = "ROC-Curve.png"
+    plt.savefig(roc_path)
+
+    # MLflow logs (OK)
+    mlflow.log_param("estimator", "DecisionTreeClassifier")
+    mlflow.log_metric("Accuracy", acc)
+
+    # **MOST IMPORTANT FIX**
+    run.upload_file(
+        name="outputs/ROC-Curve.png",       # must be inside outputs/
+        path_or_stream=roc_path
+    )
+
+print("ROC curve saved to Azure ML → Outputs + Logs")
